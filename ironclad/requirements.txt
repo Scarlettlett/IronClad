@@ -1,0 +1,5 @@
+torch
+torchvision
+facenet-pytorch
+PIL
+faiss-cpu

@@ -1,0 +1,4 @@
+# Ignore all files in below directories
+*.zip
+storage/*
+simclr_resources/*
