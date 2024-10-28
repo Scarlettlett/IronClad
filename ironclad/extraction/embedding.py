@@ -1,10 +1,12 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import torch
 from facenet_pytorch import InceptionResnetV1
 from torchvision import transforms
 
 class Embedding:
 
-    def __init__(self, pretrained='casia-webface', device='cpu'):
+    def __init__(self, pretrained='casia-4nm ', device='cpu'):
         # Initialize the FaceNet model and set it to evaluation mode
         self.device = torch.device(device)
         self.model = InceptionResnetV1(pretrained=pretrained).eval().to(self.device)

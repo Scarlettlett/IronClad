@@ -34,7 +34,7 @@ class FaissSearch:
             distances, indices = self.index.search(query_vector, k)
             # Manually compute Minkowski distance based on the returned vectors
             nearest_vectors = [self.index.reconstruct(int(i)) for i in indices[0]]
-            distances = self._compute_minkowski(query_vector[0], nearest_vectors, p=self.p)
+            distances = [self._compute_minkowski(query_vector[0], nv, p=self.p) for nv in nearest_vectors]
 
         else:
             # Default FAISS search (Euclidean or Dot Product)

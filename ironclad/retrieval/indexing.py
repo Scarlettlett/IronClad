@@ -1,9 +1,16 @@
 import faiss
 import numpy as np
 import pickle
+import warnings
+
+# Set FAISS verbosity level (optional)
+# faiss.verbosity = 0
+
+# Only display each specific FAISS warning once
+warnings.filterwarnings("once", message="clustering .* provide at least")
 
 class FaissIndex:
-    def __init__(self, vector_dimension=None, index_type='brute_force', **kwargs):
+    def __init__(self, vector_dimension=None, index_type='brute_force', nlist=20, **kwargs):
         """
         Initialize FAISS index with a selected index type and variable-length keyword arguments (kwargs).
         
@@ -15,10 +22,12 @@ class FaissIndex:
         self.vector_dimension = vector_dimension
         self.index_type = index_type
         self.index_params = kwargs  # Contains variable-length keyword arguments for index customization
-
+        self.nlist = nlist  # Number of clusters
         self.metadata = []  # Store metadata for each point
-
+        self.pending_vectors = [] # Store vectors until training is possible
         self.index = None
+        self.direct_map_enabled = False
+        faiss.verbosity = 0
     
     def _create_index(self):
         """
@@ -29,15 +38,17 @@ class FaissIndex:
         
         elif self.index_type == 'IVF':
             quantizer = self.index_params.get('quantizer', faiss.IndexFlat(self.vector_dimension))
-            nlist = self.index_params.get('nlist', 100)  # Number of clusters
-            return faiss.IndexIVFFlat(quantizer, self.vector_dimension, nlist)
+            # nlist = self.index_params.get('nlist', 100)  # Number of clusters
+            # self.index = faiss.IndexIVFFlat(quantizer, self.vector_dimension, nlist)
+            # self.index.make_direct_map()  # Enables direct mapping for reconstruct
+            return faiss.IndexIVFFlat(quantizer, self.vector_dimension, self.nlist)
         
         elif self.index_type == 'IVFPQ':
             quantizer = self.index_params.get('quantizer', faiss.IndexFlat(self.vector_dimension))
-            nlist = self.index_params.get('nlist', 100)
-            m = self.index_params.get('m', 8)  # Number of subquantizers
-            bits_per_subquantizer = self.index_params.get('bits_per_subquantizer', 8)
-            return faiss.IndexIVFPQ(quantizer, self.vector_dimension, nlist, m, bits_per_subquantizer)
+            # nlist = self.index_params.get('nlist', 100)
+            m = self.index_params.get('m', 4)  # Number of subquantizers
+            bits_per_subquantizer = self.index_params.get('bits_per_subquantizer', 4)
+            return faiss.IndexIVFPQ(quantizer, self.vector_dimension, self.nlist, m, bits_per_subquantizer)
         
         elif self.index_type == 'PQ':
             m = self.index_params.get('m', 8)  # Number of subquantizers
@@ -54,17 +65,17 @@ class FaissIndex:
         
         elif self.index_type == 'IVFSQ':
             quantizer = self.index_params.get('quantizer', faiss.IndexFlat(self.vector_dimension))
-            nlist = self.index_params.get('nlist', 100)
+            # nlist = self.index_params.get('nlist', 100)
             quantization_type = self.index_params.get('quantization_type', faiss.ScalarQuantizer.QT_8bit)
-            return faiss.IndexIVFScalarQuantizer(quantizer, self.vector_dimension, nlist, quantization_type)
+            return faiss.IndexIVFScalarQuantizer(quantizer, self.vector_dimension, self.nlist, quantization_type)
         
         elif self.index_type == 'BinaryFlat':
             return faiss.IndexBinaryFlat(self.vector_dimension)
         
         elif self.index_type == 'BinaryIVF':
             quantizer = self.index_params.get('quantizer', faiss.IndexBinaryFlat(self.vector_dimension))
-            nlist = self.index_params.get('nlist', 100)
-            return faiss.IndexBinaryIVF(quantizer, self.vector_dimension, nlist)
+            # nlist = self.index_params.get('nlist', 100)
+            return faiss.IndexBinaryIVF(quantizer, self.vector_dimension, self.nlist)
         
         else:
             raise ValueError("Unsupported index type. Choose from 'brute_force', 'Flat', 'IVF', 'IVFPQ', 'PQ', 'HNSW', 'LSH', 'IVFSQ', 'BinaryFlat', 'BinaryIVF'.")
@@ -87,10 +98,24 @@ class FaissIndex:
             raise ValueError(f"New vector must have {self.vector_dimension} dimensions.")
         
         # Train index if necessary (for IVF, PQ, IVFSQ, etc.)
-        if isinstance(self.index, (faiss.IndexIVF, faiss.IndexPQ, faiss.IndexIVFScalarQuantizer)):
-            self.index.train(new_vector)
-        
-        self.index.add(new_vector)
+        if isinstance(self.index, (faiss.IndexIVF, faiss.IndexPQ, faiss.IndexIVFScalarQuantizer, faiss.IndexIVFPQ)):
+            self.pending_vectors.append(new_vector)
+            if len(self.pending_vectors) >= self.nlist:
+                # Train the index once we have enough vectors
+                all_vectors = np.vstack(self.pending_vectors)
+                self.index.train(all_vectors)
+                self.index.add(all_vectors)
+                self.pending_vectors.clear()  # Clear pending vectors after adding to index
+
+                # Enable direct map after adding vectors, if IVF type
+                if isinstance(self.index, (faiss.IndexIVFFlat, faiss.IndexIVFPQ)) and not self.direct_map_enabled:
+                    self.index.make_direct_map()
+                    # print("Enabling direct map for IVF index.")
+                    self.direct_map_enabled = True
+
+            # self.index.train(new_vector)
+        else:
+            self.index.add(new_vector)
 
         if metadata is not None:
             if isinstance(metadata, list):
