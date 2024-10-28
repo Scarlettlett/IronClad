@@ -46,7 +46,7 @@ This section evaluates significant design decisions made across the Extraction a
 
 **Evaluation Method:** MRR, Precision@k, and mAP were used to benchmark each model's accuracy and rank performance. Results indicated that `vggface2` achieved higher MRR and mAP scores under the same index, metric and k values, suggesting it provided embeddings more aligned with our use case. This model is also used as the default model in the flask app.
 
-![image info](notebooks\pictures\model_comparison.png)
+![image info](.\notebooks\pictures\model_comparison.png)
 
 **Impact:** Using `vggface2` enables more accurate similarity searches, critical for the system's retrieval precision.
 
@@ -55,14 +55,14 @@ This section evaluates significant design decisions made across the Extraction a
 
 **Evaluation Method:** MRR and query latency were assessed across original and transformed images to evaluate retrieval performance. Each transformation’s effect on the rank of the correct identity in the top-k results was tracked to ensure model robustness under different conditions.
 
-![image info](notebooks\pictures\image_transforms.png)
-![image info](notebooks\pictures\image_transforms_2.png)
+![image info](.\notebooks\pictures\image_transforms.png)
+![image info](.\notebooks\pictures\image_transforms_2.png)
 
 For this individual probe experiment, Baseline (Original) and Rotate Small maintain a high rank and multiple correct returns. These transformations have minimal impact on the model’s ability to correctly identify the probe. Brightness Increase results in the absence of the correct name from the top-k results, demonstrating a severe degradation in retrieval accuracy.
 
 Overall MRR on looping all probes under different transformations are also experimented and evaluated:
 
-![image info](notebooks\pictures\image_transforms_3.png)
+![image info](.\notebooks\pictures\image_transforms_3.png)
 
 From the data, Random Crop (Small), Random Crop (Large), Gaussian Blur (Strong), Rotate Large, and Brightness Increase are the most impactful transformations leading to the lowest MRR values.
 
@@ -73,9 +73,9 @@ From the data, Random Crop (Small), Random Crop (Large), Gaussian Blur (Strong),
 
 **Evaluation Method:** `Brute Force`, `IVF`, `HNSW`, and `IVFSQ` indexes are evaluated for Model: vggface2, Metric: Cosine and k: 5. Query latency, MRR, precision@k, and mAP are used to compare the trade-offs. Note that latency is calculated around the operations to calculate mrr, precision@k, and mAP, excluding time on precomputation of the gallery images due to precomputation is a one-time thing. `HNSW` was chosen for large-scale indexing due to its balance of speed and accuracy, even though while `Brute Force` indexing scored slightly higher in MRR and mAP in this small dataset (currently 1000 profiles in gallery with around 1 to 5 images per profile).
 
-![image info](notebooks\pictures\index_1.png)
-![image info](notebooks\pictures\index_2.png)
-![image info](notebooks\pictures\index_3.png)
+![image info](.\notebooks\pictures\index_1.png)
+![image info](.\notebooks\pictures\index_2.png)
+![image info](.\notebooks\pictures\index_3.png)
 
 **Impact:** Choosing `HNSW` ensures faster search times with acceptable accuracy, meeting the system’s scalability requirements.
 
@@ -84,7 +84,7 @@ From the data, Random Crop (Small), Random Crop (Large), Gaussian Blur (Strong),
 
 **Evaluation Method:** MRR, Precision@k, and mAP were evaluated to identify which metric best aligns with the embedding model. After checking, the distance metrics make very little effect on this dataset with all other specifications remain the same (model, index, and k value).
 
-![image info](notebooks\pictures\distance_metric_comparison.png)
+![image info](.\notebooks\pictures\distance_metric_comparison.png)
 
 **Impact:** Choosing cosine as the default distance metric for the model implemented in flask app.
 
@@ -93,8 +93,8 @@ From the data, Random Crop (Small), Random Crop (Large), Gaussian Blur (Strong),
 
 **Evaluation Method:** The k value was evaluated for its influence on MRR and mAP for Model: vggface2, Index Type: HNSW, Metric: Cosine, balancing retrieval accuracy with processing load. The below graph indicates that MRR started to increase very slowly when k passes 5, and mAP scores the highest when k=5. Therefore, in the flask app, the model asks user for a k number and default to 5 if not provided.
 
-![image info](notebooks\pictures\mrr_diffk.png)
-![image info](notebooks\pictures\map_diffk.png)
+![image info](.\notebooks\pictures\mrr_diffk.png)
+![image info](.\notebooks\pictures\map_diffk.png)
 
 **Impact:** An optimal k value k=5 ensures precise retrieval without overloading the system, resulting in efficient and accurate searches.
 
